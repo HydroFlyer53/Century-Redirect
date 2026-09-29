@@ -6,11 +6,11 @@ const PORT = process.env.PORT || 3000;
 const TARGET_URL = 'https://store.centuryresources.com/shop/shopping.aspx'; 
 const TARGET_DOMAIN = '://store.centuryresources.com';
 
-app.get('/launch', async (req, res) => {
+app.get('/', async (req, res) => {
     let browser;
     try {
-        // 1. Launch a headless browser engine on the server
         browser = await chromium.launch({ headless: true });
+        const context = await browser.newContext();
         
         // 2. Create an isolated browser context
         const context = await browser.newContext();
