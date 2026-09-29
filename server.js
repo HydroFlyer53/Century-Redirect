@@ -1,61 +1,83 @@
 const express = require('express');
-const { chromium } = require('playwright-core');
+const { chromium } = require('playwright-core'); // Uses the local binary Render just downloaded
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ==========================================
 // ⚙️ EASY CONFIGURATION VARIABLES (EDIT HERE)
 // ==========================================
-const DEFAULT_GROUP_ID   = "55901";
-const DEFAULT_FIRST_NAME = "John";
-const DEFAULT_LAST_NAME  = "Doe";
+const DEFAULT_GROUP_ID   = "55901"; 
+const DEFAULT_FIRST_NAME = "John";               
+const DEFAULT_LAST_NAME  = "Doe";                
 
 const TARGET_URL = 'https://store.centuryresources.com/shop/index.aspx';
-
-// Get your free API Token from browserless.io to handle remote rendering
-const BROWSERLESS_TOKEN = "2VLl5theLHlTqSD335f62ea762ba003f39ef2d2ff47b76afa"; 
 // ==========================================
 
-app.get('/', async (req, res) => {
+app.get(/.*/, async (req, res) => {
+    let browser;
     try {
-        // 1. Connect to a remote cloud browser context that bypasses local device limitations
-        const browser = await chromium.connectOverCDP(
-            `wss://chrome.browserless.io?token=${BROWSERLESS_TOKEN}&--window-size=1280,720`
-        );
+        // 1. Launch the local Chromium engine built into your Render server instance
+        browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Mandatory flags for cloud server performance
+        });
         
-        const context = await browser.newContext();
+        const context = await browser.newContext({
+            viewport: { width: 1280, height: 720 }
+        });
         const page = await context.newPage();
 
-        // 2. Open the page natively (All CSS/JS formats perfectly because it runs on a real Chrome engine)
-        await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
+        // 2. Load the target web view directly under native contexts
+        const requestedPath = req.url;
+        const currentTargetUrl = requestedPath === '/' ? TARGET_URL : `https://targetwebsite.com${requestedPath}`;
+        
+        await page.goto(currentTargetUrl, { waitUntil: 'networkidle' });
 
         // --- STEP 1: Enter Group ID ---
-        await page.fill('#txtGroupID', DEFAULT_GROUP_ID);
+        const groupIdField = await page.\$('#txtGroupID');
+        if (groupIdField) {
+            await page.fill('#txtGroupID', DEFAULT_GROUP_ID);
+        }
 
         // --- STEP 2: Click the dynamic school link ---
-        // Playwright automatically waits for the element to appear on the screen
-        await page.click('a.school[schoolordernum="55901"]');
+        // Waits up to 5 seconds for the link to show up after the ID entry
+        try {
+            await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 5000 });
+            await page.click('a.school[schoolordernum="55901"]');
+        } catch (e) {
+            console.log("School link didn't appear or wasn't required.");
+        }
 
-        // --- STEP 3: Populate Student Names and Submit Form ---
-        await page.fill('#student_namef', DEFAULT_FIRST_NAME);
-        await page.fill('#student_namel', DEFAULT_LAST_NAME);
-        
-        // Click the final save button
-        await page.click('#btnWStudent');
+        // --- STEP 3: Populate Student Names ---
+        const firstNameField = await page.\$('#student_namef');
+        if (firstNameField) {
+            await page.fill('#student_namef', DEFAULT_FIRST_NAME);
+            await page.fill('#student_namel', DEFAULT_LAST_NAME);
+            
+            // Click the final validation button
+            await page.click('#btnWStudent');
+            await page.waitForNavigation({ waitUntil: 'networkidle' }).catch(() => null);
+        }
 
-        // 3. HANDOFF: Instead of a static text snapshot, redirect the user 
-        // straight to the live, interactive browser session handle.
-        // Browserless provides a built-in interactive URL for active sessions.
-        const sessionUrl = `https://browserless.io{BROWSERLESS_TOKEN}`;
+        // 3. Capture the post-automation structural content
+        let htmlContent = await page.content();
         
-        res.redirect(sessionUrl);
+        // Clean up the browser instance resources safely
+        await browser.close();
+
+        // 4. Inject a quick path-rewriter script so the user's browser loads styles/images natively
+        htmlContent = htmlContent.replace(/(src|href)="\/(?!\/)/g, `$1="https://targetwebsite.com/`);
+
+        // Send the fully set up, styled page over to the device screen
+        res.send(htmlContent);
 
     } catch (error) {
-        console.error('Cloud Automation Error:', error);
-        res.status(500).send('Unable to initialize automated device stream.');
+        console.error('Local Cloud Automation Error:', error);
+        if (browser) await browser.close();
+        res.status(500).send('Unable to initialize automated session on server hardware.');
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Cloud Stream Hub active on port ${PORT}`);
+    console.log(`Local Server Automation Pipeline active on port ${PORT}`);
 });
