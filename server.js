@@ -6,18 +6,17 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // ⚙️ EASY CONFIGURATION VARIABLES (EDIT HERE)
 // ==========================================
-const DEFAULT_GROUP_ID   = "55901"; 
+const DEFAULT_GROUP_ID   = "Y55901"; 
 const DEFAULT_FIRST_NAME = "John";               
 const DEFAULT_LAST_NAME  = "Doe";                
 
 const TARGET_URL = 'https://store.centuryresources.com/shop/index.aspx';
 // ==========================================
 
-// Tell Express to process requests instantly so Render doesn't time out
 app.get(/.*/, async (req, res) => {
-    // Send a temporary "loading" response header instantly to keep the port open and active
+    // Keep Render connection alive
     res.setHeader('Content-Type', 'text/html');
-    res.write(' '); // Drops a small buffer space to force the browser to stay connected
+    res.write(' '); 
 
     let browser;
     try {
@@ -30,7 +29,7 @@ app.get(/.*/, async (req, res) => {
                 '--disable-dev-shm-usage',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process' // Reduces memory footprint drastically on Render's free layer
+                '--single-process'
             ]
         });
         
@@ -42,50 +41,69 @@ app.get(/.*/, async (req, res) => {
         const requestedPath = req.url;
         const currentTargetUrl = requestedPath === '/' ? TARGET_URL : `https://targetwebsite.com${requestedPath}`;
         
-        // Use a looser wait condition so it uses less server performance
         await page.goto(currentTargetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         // --- STEP 1: Enter Group ID ---
-        const groupIdField = await page.$('#txtGroupID');
-        if (groupIdField) {
+        const groupIDInput = page.locator('#txtGroupID');
+        if (await groupIDInput.count() > 0) {
             await page.fill('#txtGroupID', DEFAULT_GROUP_ID);
         }
 
         // --- STEP 2: Click the dynamic school link ---
         try {
-            await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 3000 });
+            await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 4000 });
             await page.click('a.school[schoolordernum="55901"]');
         } catch (e) {
-            console.log("School link didn't appear or wasn't required.");
+            console.log("School link skipped or not visible.");
         }
 
-        // --- STEP 3: Populate Student Names ---
-        const firstNameField = await page.$('#student_namef');
-        if (firstNameField) {
-            await page.fill('#student_namef', DEFAULT_FIRST_NAME);
-            await page.fill('#student_namel', DEFAULT_LAST_NAME);
+        // Give the page layout a small stability pause (600ms) to process transitions
+        await page.waitForTimeout(600);
+
+        // --- STEP 3: Populate Student Names (FORCE INJECTION) ---
+        // We use page.evaluate to inject text instantly via JavaScript.
+        // This bypasses Playwright's visibility/animation blocks completely.
+        await page.evaluate((config) => {
+            const firstNameField = document.getElementById('student_namef');
+            const lastNameField = document.getElementById('student_namel');
             
-            await page.click('#btnWStudent');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => null);
+            if (firstNameField && lastNameField) {
+                firstNameField.value = config.firstName;
+                firstNameField.dispatchEvent(new Event('input', { bubbles: true }));
+                firstNameField.dispatchEvent(new Event('change', { bubbles: true }));
+
+                lastNameField.value = config.lastName;
+                lastNameField.dispatchEvent(new Event('input', { bubbles: true }));
+                lastNameField.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                console.log("Forced text injection successful.");
+            }
+        }, { firstName: DEFAULT_FIRST_NAME, lastName: DEFAULT_LAST_NAME });
+
+        // Click the final save button
+        try {
+            await page.click('#btnWStudent', { force: true, timeout: 3000 });
+            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 4000 }).catch(() => null);
+        } catch (e) {
+            console.log("Submit button click timed out or form auto-submitted.");
         }
 
-        // 3. Grab the live code contents
+        // Capture automated state structural source markup
         let htmlContent = await page.content();
         await browser.close();
 
-        // 4. Map the asset directories natively
+        // Dynamically fix asset paths
         htmlContent = htmlContent.replace(/(src|href)="\/(?!\/)/g, `$1="https://targetwebsite.com/`);
 
-        // Close the stream connection and deliver the page to the device window
         res.end(htmlContent);
 
     } catch (error) {
         console.error('Server Automation Error:', error);
         if (browser) await browser.close();
-        res.end('<h3>Unable to process automated pipeline on thin instance layers. Refresh the link to try again.</h3>');
+        res.end('<h3>System timed out initializing backend layout. Please refresh to try again.</h3>');
     }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Optimized Server Pipeline online listening on port ${PORT}`);
+    console.log(`Self-Contained Server Pipeline live on port ${PORT}`);
 });
