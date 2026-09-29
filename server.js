@@ -13,8 +13,8 @@ const DEFAULT_LAST_NAME  = "Doe";                // Put your default Last Name h
 const TARGET_BASE_URL = 'https://store.centuryresources.com/shop/index.aspx'; 
 // ==========================================
 
-// MODERN EXPRESS CATCH-ALL ROUTE SYNTAX
-app.get('/:splat*', (req, res) => {
+// PURE REGEX CATCH-ALL ROUTE (Bypasses path-to-regexp parsing errors entirely)
+app.get(/.*/, (req, res) => {
     const requestedPath = req.url;
     const fullTargetDestination = `${TARGET_BASE_URL}${requestedPath}`;
 
