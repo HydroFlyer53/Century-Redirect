@@ -4,8 +4,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Update these to match the exact target fundraiser domain
-const TARGET_URL = 'https://targetwebsite.com'; 
-const TARGET_DOMAIN = '://targetwebsite.com';
+const TARGET_URL = 'https://store.centuryresources.com/shop/shopping.aspx'; 
+const TARGET_DOMAIN = 'store.centuryresources.com';
 
 app.get('/', async (req, res) => {
     let browser;
