@@ -3,20 +3,21 @@ const { chromium } = require('playwright');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const TARGET_URL = 'https://store.centuryresources.com/shop/shopping.aspx'; 
-const TARGET_DOMAIN = '://store.centuryresources.com';
+// Update these to match the exact target fundraiser domain
+const TARGET_URL = 'https://targetwebsite.com'; 
+const TARGET_DOMAIN = '://targetwebsite.com';
 
 app.get('/', async (req, res) => {
     let browser;
     try {
+        // 1. Launch a headless browser instance on the server
         browser = await chromium.launch({ headless: true });
-        const context = await browser.newContext();
         
-        // 2. Create an isolated browser context
-        const context = await browser.newContext();
+        // 2. Create an isolated browser context (Variable declared ONCE here)
+        const browserContext = await browser.newContext();
 
-        // 3. Inject the ASP.NET_SessionId cookie directly into the target domain context
-        await context.addCookies([{
+        // 3. Inject the session cookie into the target domain context
+        await browserContext.addCookies([{
             name: 'ASP.NET_SessionId',
             value: 'rcihb320ev5wohgx2dfqrakn',
             domain: TARGET_DOMAIN,
@@ -26,30 +27,26 @@ app.get('/', async (req, res) => {
             sameSite: 'Lax'
         }]);
 
-        // 4. Open a tab and navigate to the pre-loaded setup page
-        const page = await context.newPage();
+        // 4. Open a new tab and navigate to the layout page
+        const page = await browserContext.newPage();
         await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
 
-        // [OPTIONAL] Add automated clicks/typing here if needed:
-        // await page.fill('#first-name-input', 'John');
-        // await page.click('#submit-btn');
-
-        // 5. Grab the live HTML structural snapshot to show your user
+        // 5. Grab the live page HTML to output to your user
         const content = await page.content();
         
-        // Clean up the server resource
+        // Clean up the server process
         await browser.close();
 
-        // Hand the fully working page over to the user
+        // Hand the pre-configured layout directly to the user
         res.send(content);
 
     } catch (error) {
-        console.error('Automation failed:', error);
+        console.error('Automation engine error:', error);
         if (browser) await browser.close();
         res.status(500).send('Could not generate automated cloud session.');
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
