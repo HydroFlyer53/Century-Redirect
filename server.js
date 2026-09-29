@@ -1,5 +1,5 @@
 const express = require('express');
-const { chromium } = require('playwright-core'); // Uses the local binary Render downloaded
+const { chromium } = require('playwright-core');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -13,13 +13,25 @@ const DEFAULT_LAST_NAME  = "Doe";
 const TARGET_URL = 'https://store.centuryresources.com/shop/index.aspx';
 // ==========================================
 
+// Tell Express to process requests instantly so Render doesn't time out
 app.get(/.*/, async (req, res) => {
+    // Send a temporary "loading" response header instantly to keep the port open and active
+    res.setHeader('Content-Type', 'text/html');
+    res.write(' '); // Drops a small buffer space to force the browser to stay connected
+
     let browser;
     try {
-        // 1. Launch the local Chromium engine built into your Render server instance
         browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Mandatory flags for cloud server performance
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process' // Reduces memory footprint drastically on Render's free layer
+            ]
         });
         
         const context = await browser.newContext({
@@ -27,57 +39,53 @@ app.get(/.*/, async (req, res) => {
         });
         const page = await context.newPage();
 
-        // 2. Load the target web view directly under native contexts
         const requestedPath = req.url;
         const currentTargetUrl = requestedPath === '/' ? TARGET_URL : `https://targetwebsite.com${requestedPath}`;
         
-        await page.goto(currentTargetUrl, { waitUntil: 'networkidle' });
+        // Use a looser wait condition so it uses less server performance
+        await page.goto(currentTargetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         // --- STEP 1: Enter Group ID ---
-        const groupIdField = await page.$('#txtGroupID'); // Fixed syntax: backslash removed
+        const groupIdField = await page.\$('#txtGroupID');
         if (groupIdField) {
             await page.fill('#txtGroupID', DEFAULT_GROUP_ID);
         }
 
         // --- STEP 2: Click the dynamic school link ---
-        // Waits up to 5 seconds for the link to show up after the ID entry
         try {
-            await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 5000 });
+            await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 3000 });
             await page.click('a.school[schoolordernum="55901"]');
         } catch (e) {
             console.log("School link didn't appear or wasn't required.");
         }
 
         // --- STEP 3: Populate Student Names ---
-        const firstNameField = await page.$('#student_namef'); // Fixed syntax: backslash removed
+        const firstNameField = await page.\$('#student_namef');
         if (firstNameField) {
             await page.fill('#student_namef', DEFAULT_FIRST_NAME);
             await page.fill('#student_namel', DEFAULT_LAST_NAME);
             
-            // Click the final validation button
             await page.click('#btnWStudent');
-            await page.waitForNavigation({ waitUntil: 'networkidle' }).catch(() => null);
+            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => null);
         }
 
-        // 3. Capture the post-automation structural content
+        // 3. Grab the live code contents
         let htmlContent = await page.content();
-        
-        // Clean up the browser instance resources safely
         await browser.close();
 
-        // 4. Inject a quick path-rewriter script so the user's browser loads styles/images natively
+        // 4. Map the asset directories natively
         htmlContent = htmlContent.replace(/(src|href)="\/(?!\/)/g, `$1="https://targetwebsite.com/`);
 
-        // Send the fully set up, styled page over to the device screen
-        res.send(htmlContent);
+        // Close the stream connection and deliver the page to the device window
+        res.end(htmlContent);
 
     } catch (error) {
-        console.error('Local Cloud Automation Error:', error);
+        console.error('Server Automation Error:', error);
         if (browser) await browser.close();
-        res.status(500).send('Unable to initialize automated session on server hardware.');
+        res.end('<h3>Unable to process automated pipeline on thin instance layers. Refresh the link to try again.</h3>');
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Local Server Automation Pipeline active on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Optimized Server Pipeline online listening on port ${PORT}`);
 });
