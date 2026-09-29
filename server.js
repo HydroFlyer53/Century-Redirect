@@ -46,7 +46,7 @@ app.get(/.*/, async (req, res) => {
         await page.goto(currentTargetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         // --- STEP 1: Enter Group ID ---
-        const groupIdField = await page.\$('#txtGroupID');
+        const groupIdField = await page.$('#txtGroupID');
         if (groupIdField) {
             await page.fill('#txtGroupID', DEFAULT_GROUP_ID);
         }
@@ -60,7 +60,7 @@ app.get(/.*/, async (req, res) => {
         }
 
         // --- STEP 3: Populate Student Names ---
-        const firstNameField = await page.\$('#student_namef');
+        const firstNameField = await page.$('#student_namef');
         if (firstNameField) {
             await page.fill('#student_namef', DEFAULT_FIRST_NAME);
             await page.fill('#student_namel', DEFAULT_LAST_NAME);
