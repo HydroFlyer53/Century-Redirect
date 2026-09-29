@@ -5,15 +5,16 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // ⚙️ EASY CONFIGURATION VARIABLES (EDIT HERE)
 // ==========================================
-const DEFAULT_GROUP_ID   = "55901"; // Change this to your target Group ID
-const DEFAULT_FIRST_NAME = "John";               // Change this to your default First Name
-const DEFAULT_LAST_NAME  = "Doe";                // Change this to your default Last Name
+const DEFAULT_GROUP_ID   = "55901"; // Put your Group ID here
+const DEFAULT_FIRST_NAME = "John";               // Put your default First Name here
+const DEFAULT_LAST_NAME  = "Doe";                // Put your default Last Name here
 
 // Target Base Domain Info
 const TARGET_BASE_URL = 'https://store.centuryresources.com/shop/index.aspx'; 
 // ==========================================
 
-app.get('*', (req, res) => {
+// MODERN EXPRESS CATCH-ALL ROUTE SYNTAX
+app.get('/:splat*', (req, res) => {
     const requestedPath = req.url;
     const fullTargetDestination = `${TARGET_BASE_URL}${requestedPath}`;
 
