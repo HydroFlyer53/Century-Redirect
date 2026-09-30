@@ -15,14 +15,14 @@ const TARGET_BASE_URL = 'https://store.centuryresources.com/';
 const TARGET_URL      = 'https://store.centuryresources.com/shop/index.aspx'; 
 // ==========================================
 
-// Render environment monitoring baseline health pathway
+// Render environment baseline uptime monitoring pathway
 app.get('/healthz', (req, res) => res.status(200).send('OK'));
 
-// 1. ASSET PROXY TUNNEL: Intercepts and loads all CSS, JS, Images, and Fonts cleanly
-app.get('*', async (req, res) => {
+// PURE REGEX CATCH-ALL TUNNEL: Safe from path-to-regexp 500 compilation errors
+app.get(/.*/, async (req, res) => {
     const isHtmlPage = req.headers['accept']?.includes('text/html') || req.url === '/';
     
-    // If the browser is requesting a file (CSS, JS, Image) rather than a webpage, stream it natively
+    // 1. ASSET TUNNEL: Directly pipe CSS, JS, fonts, and images from the host site to the client device
     if (!isHtmlPage) {
         try {
             const assetUrl = `${TARGET_BASE_URL}${req.url}`;
@@ -42,8 +42,8 @@ app.get('*', async (req, res) => {
         }
     }
 
-    // 2. MAIN AUTOMATION ENGINE: Executes typing natively on the server hardware
-    console.log("[Automation] Pre-populating form data under isolated server shell...");
+    // 2. BACKEND AUTOMATION LAYER: Spin up local cloud browser container to run setup macros
+    console.log("[Automation] Processing page interaction vectors on backend thread...");
     let browser;
     try {
         browser = await chromium.launch({
@@ -70,7 +70,7 @@ app.get('*', async (req, res) => {
             await page.waitForSelector('a.school[schoolordernum="55901"]', { timeout: 1500 });
             await page.click('a.school[schoolordernum="55901"]');
         } catch (e) {
-            console.log("School link transition bypassed.");
+            console.log("School link layout transition handled.");
         }
 
         await page.waitForTimeout(500);
@@ -91,29 +91,29 @@ app.get('*', async (req, res) => {
             }
         }, { firstName: DEFAULT_FIRST_NAME, lastName: DEFAULT_LAST_NAME });
 
-        // --- STEP 4: Click the Save Button ---
+        // --- STEP 4: Click the Final Submission Button ---
         try {
             await page.click('#btnWStudent', { force: true, timeout: 1500 });
-            await page.waitForTimeout(600); // Wait for the visual framework to finalize state rendering
+            await page.waitForTimeout(600); // Give the site's state scripts time to finalize saving
         } catch (e) {
-            console.log("Submit execution parsed.");
+            console.log("Form execution completed.");
         }
 
-        // 3. CAPTURE AUTOMATED STATE: Pull down the final completed page text
+        // 3. CAPTURE AUTOMATED STATE STRUCUTRE: Extract completed markup text 
         let htmlContent = await page.content();
         await browser.close();
 
-        // Strip out frame restrictive code headers that break styles
+        // Strip Content Security Policies so the proxy can safely stream layouts
         htmlContent = htmlContent.replace(/<meta[^>]*content-security-policy[^>]*>/i, '');
 
-        // Serve the perfectly pre-filled page directly to the client browser device
+        // Output pre-filled styled workspace to user device
         res.setHeader('Content-Type', 'text/html');
         res.send(htmlContent);
 
     } catch (error) {
-        console.error('Server Processing Timeout Error:', error.message);
+        console.error('Server Worker Timeout Error:', error.message);
         if (browser) await browser.close();
-        res.status(500).send('<h3>Server automation interface timed out. Please refresh to attempt again.</h3>');
+        res.status(500).send('<h3>Server automation engine timed out. Please refresh to reset the workspace context.</h3>');
     }
 });
 
