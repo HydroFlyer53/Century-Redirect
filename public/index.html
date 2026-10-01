@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Century Shop</title>
+  <style>
+    :root { color-scheme: light; font-family: Georgia, 'Times New Roman', serif; background: #f4efe5; color: #1b3028; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(36rem, calc(100% - 2rem)); padding: 3rem 0; }
+    h1 { margin: 0 0 .75rem; font-size: clamp(2.25rem, 8vw, 4.5rem); line-height: .95; font-weight: 500; letter-spacing: 0; }
+    p { max-width: 32rem; font: 1.05rem/1.6 system-ui, sans-serif; }
+    button { margin-top: 1rem; border: 0; border-radius: 4px; padding: .9rem 1.25rem; background: #c94f2d; color: white; font: 700 1rem system-ui, sans-serif; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #b8aa96; font: .95rem/1.5 system-ui, sans-serif; }
+    a { color: #9d351d; }
+    .error { color: #a52820; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Shop for your group.</h1>
+    <p>Start a private shopping session for Olentangy Orange HS Band. The group and student details are handled automatically.</p>
+    <button id="start" type="button">Start shopping</button>
+    <div id="status" aria-live="polite">Ready when you are.</div>
+  </main>
+  <script>
+    const start = document.querySelector('#start');
+    const status = document.querySelector('#status');
+
+    function show(message, error = false) {
+      status.textContent = message;
+      status.className = error ? 'error' : '';
+    }
+
+    async function poll(id) {
+      const response = await fetch(`/api/sessions/${id}`);
+      const session = await response.json();
+      show(session.message);
+
+      if (session.status === 'ready') {
+        if (session.viewUrl) {
+          window.location.href = session.viewUrl;
+        } else {
+          show('The shopping session is ready, but no browser viewer is configured on the server.', true);
+        }
+        return;
+      }
+      if (session.status === 'error') {
+        show(session.message, true);
+        start.disabled = false;
+        return;
+      }
+      window.setTimeout(() => poll(id), 1000);
+    }
+
+    start.addEventListener('click', async () => {
+      start.disabled = true;
+      show('Preparing your private browser session...');
+      try {
+        const response = await fetch('/api/sessions', { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to start a session.');
+        await poll(result.id);
+      } catch (error) {
+        show(error.message, true);
+        start.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: century-link-session
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npx playwright install chromium --with-deps
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: STUDENT_FIRST_NAME
+        sync: false
+      - key: STUDENT_LAST_NAME
+        sync: false
+      - key: BROWSER_VIEW_URL_TEMPLATE
+        sync: false
